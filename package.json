@@ -1,5 +1,5 @@
 {
-  "name": "vps-service-template",
+  "name": "notion-cache",
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
@@ -7,7 +7,10 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1"
   }
 }
