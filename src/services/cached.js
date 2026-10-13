@@ -39,7 +39,8 @@ function createCachedFetcher(cache) {
         console.warn('[notion-cache] serving stale', key, err?.message ?? String(err));
         return { value: kept.value, cached: true, stale: true };
       }
-      throw err;
+      // Express 4 treats next(undefined) as "no error"; keep a reason.
+      throw err ?? new Error('fetch rejected without a reason');
     }
   };
 }

@@ -5,7 +5,7 @@ const { Cache, STALE_MAX_MS } = require('../src/cache');
 const { createCachedFetcher } = require('../src/services/cached');
 const { makeApp, fakeNotion } = require('../test-support/helpers.cjs');
 
-afterEach(() => mock.timers.reset());
+afterEach(() => { mock.timers.reset(); mock.restoreAll(); });
 
 const deferred = () => {
   let resolve, reject;
@@ -155,5 +155,14 @@ test('a non-Error rejection with a stale copy still serves the stale copy', asyn
   mock.timers.tick(301 * 1000);
   const hit = await getOrFetch('k', 300, () => Promise.reject(undefined));
   assert.deepEqual(hit, { value: 'v', cached: true, stale: true });
-  mock.restoreAll();
+});
+
+test('a nullish rejection with no stale copy still becomes an Error, and a 502 via the app', async () => {
+  mock.method(console, 'error', () => {});
+  const getOrFetch = createCachedFetcher(new Cache());
+  await assert.rejects(getOrFetch('k', 300, () => Promise.reject(undefined)), Error);
+  const notion = fakeNotion();
+  notion.queryDatabase = () => Promise.reject(undefined);
+  const res = await request(makeApp({ notion }).app).get('/api/database/db1');
+  assert.equal(res.status, 502);
 });
