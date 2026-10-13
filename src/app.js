@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { createCachedFetcher } = require('./services/cached');
+const { errorHandler } = require('./errors');
 
 /**
  * Builds the app from injected dependencies so tests can create a fresh
@@ -58,6 +59,8 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
     cache: cache.stats(),
     timestamp: new Date().toISOString(),
   }));
+
+  app.use(errorHandler);
 
   return app;
 }
