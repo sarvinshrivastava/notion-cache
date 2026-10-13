@@ -84,9 +84,22 @@ test('malformed path encoding → 400', async () => {
 });
 
 test('Notion validation_error → 400, not 502', async () => {
+  const warn = mock.method(console, 'warn', () => {});
   const notion = fakeNotion({ fail: Object.assign(new Error('invalid filter'), { code: 'validation_error', status: 400 }) });
   const { app } = makeApp({ notion });
   const res = await request(app).get(`/api/database/db1?filter=${enc(JSON.stringify({ property: 'x' }))}`);
+  assert.equal(res.status, 400);
+  assert.deepEqual(res.body, { error: 'bad_request' });
+  const logged = warn.mock.calls.filter(c => c.arguments[0] === '[notion-cache] notion validation_error');
+  assert.equal(logged.length, 1);
+});
+
+test('a JSON body over the 100 kB limit → 400', async () => {
+  const { app } = makeApp();
+  const res = await request(app)
+    .post('/api/cache/invalidate')
+    .set('Content-Type', 'application/json')
+    .send(JSON.stringify({ pad: 'x'.repeat(150 * 1024) }));
   assert.equal(res.status, 400);
   assert.deepEqual(res.body, { error: 'bad_request' });
 });

@@ -69,10 +69,10 @@ jobs:
             APP_DIR="/root/apps/$REPO_NAME"
             if [ ! -d "$APP_DIR/.git" ]; then
               git clone "${{ github.server_url }}/${{ github.repository }}.git" "$APP_DIR"
-            else
-              # Deploy exactly the commit this run tested, not whatever main
-              # moved to since; a diverged or dirty checkout is overwritten.
-              git -C "$APP_DIR" fetch origin main
-              git -C "$APP_DIR" reset --hard "${{ github.sha }}"
             fi
+            # Deploy exactly the commit this run tested, not whatever main moved
+            # to since. Fetching the sha itself survives a force-push of main;
+            # tracked changes are overwritten, untracked files are left alone.
+            git -C "$APP_DIR" fetch origin "${{ github.sha }}"
+            git -C "$APP_DIR" reset --hard "${{ github.sha }}"
             vps-deploy "$REPO_NAME" "$APP_DIR"

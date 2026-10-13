@@ -15,6 +15,8 @@ function errorHandler(err, req, res, _next) {
     || err instanceof URIError
     || (err.expose && err.status >= 400 && err.status < 500);
   if (clientError) {
+    // Filters are banned on the allowlist, so this means our own request is wrong.
+    if (err.code === 'validation_error') console.warn('[notion-cache] notion validation_error', req.originalUrl, err.message);
     return res.status(400).json({ error: 'bad_request' });
   }
   console.error('[notion-cache]', req.method, req.originalUrl, err);

@@ -14,8 +14,7 @@ function parseAllowedDbIds(env = process.env) {
 /**
  * Seconds a cached entry stays fresh. 0 is valid (always refetch; the copy is
  * still kept as a stale fallback); unset, empty, negative or non-numeric falls
- * back to 300. `parseInt(x) || 300` used to turn
- * 0 into 300.
+ * back to 300. (`parseInt(x) || 300` used to turn 0 into 300.)
  */
 function parseTtl(env = process.env) {
   const raw = env.CACHE_TTL_SECONDS;

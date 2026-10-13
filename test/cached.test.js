@@ -145,3 +145,15 @@ test('clear() during an in-flight fetch: the old result is not written back', as
   assert.equal(next.value, 'new');
   assert.equal(count, 2);
 });
+
+test('a non-Error rejection with a stale copy still serves the stale copy', async () => {
+  mock.method(console, 'warn', () => {});
+  mock.timers.enable({ apis: ['Date'], now: 0 });
+  const cache = new Cache();
+  const getOrFetch = createCachedFetcher(cache);
+  await getOrFetch('k', 300, async () => 'v');
+  mock.timers.tick(301 * 1000);
+  const hit = await getOrFetch('k', 300, () => Promise.reject(undefined));
+  assert.deepEqual(hit, { value: 'v', cached: true, stale: true });
+  mock.restoreAll();
+});

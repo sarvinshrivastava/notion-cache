@@ -36,7 +36,7 @@ function createCachedFetcher(cache) {
     } catch (err) {
       const kept = cache.get(key);
       if (kept) {
-        console.warn('[notion-cache] serving stale', key, err.message);
+        console.warn('[notion-cache] serving stale', key, err?.message ?? String(err));
         return { value: kept.value, cached: true, stale: true };
       }
       throw err;

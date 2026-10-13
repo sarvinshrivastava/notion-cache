@@ -64,3 +64,19 @@ test('an empty key → 400 and the cache is untouched', async () => {
   assert.equal(res.status, 400);
   assert.equal(cache.stats().size, 2);
 });
+
+test('a wrong secret, same length or not → 401, cache untouched', async () => {
+  const { app, cache } = seeded();
+  for (const bad of ['s3creX', 'short', 's3cret-but-longer']) {
+    const res = await request(app).post('/api/cache/invalidate').set('x-invalidate-secret', bad);
+    assert.equal(res.status, 401, bad);
+  }
+  assert.equal(cache.stats().size, 2);
+});
+
+test('a whitespace-only key → 400 and the cache is untouched', async () => {
+  const { app, cache } = seeded();
+  const res = await request(app).post('/api/cache/invalidate?key=%20').set('x-invalidate-secret', SECRET);
+  assert.equal(res.status, 400);
+  assert.equal(cache.stats().size, 2);
+});

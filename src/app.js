@@ -15,9 +15,9 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
     console.warn('ALLOWED_DB_IDS is not set — every database id is served');
   }
   const app = express();
+  app.disable('x-powered-by');
   // One hop: host nginx proxies to 127.0.0.1 and sets X-Forwarded-For. Without
   // this every visitor shares nginx's address, and so one rate-limit bucket.
-  app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
   app.use(express.json());

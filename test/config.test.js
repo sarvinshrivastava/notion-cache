@@ -1,10 +1,12 @@
-const { test, mock } = require('node:test');
+const { test, mock, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { parseTtl, optionsFromEnv } = require('../src/config');
 const { makeApp } = require('../test-support/helpers.cjs');
+
+afterEach(() => mock.restoreAll());
 
 test('TTL parse: 0 is kept, bad or empty values fall back to 300', () => {
   assert.equal(parseTtl({ CACHE_TTL_SECONDS: '0' }), 0);
@@ -40,10 +42,10 @@ test('optionsFromEnv maps env to ttl and allowedDbIds', () => {
 });
 
 test('/health reports whether the allowlist is on', async () => {
-  const quiet = mock.method(console, 'warn', () => {});
+  mock.method(console, 'warn', () => {});
   const off = await request(makeApp().app).get('/health');
-  quiet.mock.restore();
   const on = await request(makeApp({ allowedDbIds: ['abc'] }).app).get('/health');
+  assert.equal(off.headers['x-powered-by'], undefined);
   assert.equal(off.body.allowlist, false);
   assert.equal(on.body.allowlist, true);
 });
