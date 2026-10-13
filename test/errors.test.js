@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const { makeApp, fakeNotion } = require('../test-support/helpers.cjs');
 
-afterEach(() => mock.restoreAll());
+afterEach(() => { mock.restoreAll(); mock.timers.reset(); });
 const quiet = () => mock.method(console, 'error', () => {});
 
 const enc = v => encodeURIComponent(v);
@@ -65,7 +65,6 @@ test('a stale entry wins over a Notion error', async () => {
   const res = await request(app).get('/api/database/db1');
   assert.equal(res.status, 200);
   assert.equal(res.body._stale, true);
-  mock.timers.reset();
 });
 
 test('malformed JSON body on POST → 400', async () => {
@@ -75,4 +74,19 @@ test('malformed JSON body on POST → 400', async () => {
     .set('Content-Type', 'application/json')
     .send('{bad');
   assert.equal(res.status, 400);
+});
+
+test('malformed path encoding → 400', async () => {
+  const { app } = makeApp();
+  const res = await request(app).get('/api/database/%E0');
+  assert.equal(res.status, 400);
+  assert.deepEqual(res.body, { error: 'bad_request' });
+});
+
+test('Notion validation_error → 400, not 502', async () => {
+  const notion = fakeNotion({ fail: Object.assign(new Error('invalid filter'), { code: 'validation_error', status: 400 }) });
+  const { app } = makeApp({ notion });
+  const res = await request(app).get(`/api/database/db1?filter=${enc(JSON.stringify({ property: 'x' }))}`);
+  assert.equal(res.status, 400);
+  assert.deepEqual(res.body, { error: 'bad_request' });
 });

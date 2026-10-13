@@ -17,6 +17,7 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
   const app = express();
   // One hop: host nginx proxies to 127.0.0.1 and sets X-Forwarded-For. Without
   // this every visitor shares nginx's address, and so one rate-limit bucket.
+  app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
   app.use(express.json());
@@ -28,7 +29,7 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
       'http://localhost:3000',
     ],
   }));
-  app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+  app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
   const getOrFetch = createCachedFetcher(cache);
   if (allowlistOn) {
     // Nothing reads pages (0 requests in the access logs), so with the
@@ -39,22 +40,11 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
   }
   app.use('/api/database', require('./routes/database')({ getOrFetch, notion, ttl, allowedDbIds }));
 
-  app.post('/api/cache/invalidate', (req, res) => {
-    // Fail closed: with no secret configured, `undefined !== undefined` would
-    // otherwise let a header-less request through.
-    const secret = process.env.INVALIDATE_SECRET;
-    if (!secret || req.get('x-invalidate-secret') !== secret)
-      return res.status(401).json({ error: 'Unauthorized' });
-    const { key } = req.query;
-    if (key !== undefined && typeof key !== 'string')
-      return res.status(400).json({ error: 'bad_request' });
-    if (key) { cache.invalidate(key); return res.json({ invalidated: key }); }
-    cache.clear();
-    res.json({ cleared: true });
-  });
+  app.use('/api/cache', require('./routes/cache')({ cache }));
 
   app.get('/health', (req, res) => res.json({
     status: 'ok',
+    allowlist: allowlistOn,
     uptime: process.uptime(),
     // Size only: the keys are database ids and visitor-supplied filters.
     cache: { size: cache.stats().size },

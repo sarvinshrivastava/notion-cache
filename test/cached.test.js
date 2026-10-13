@@ -117,3 +117,31 @@ test('two apps share neither in-flight fetches nor generation', async () => {
   assert.equal(calls, 2);
   assert.equal(c2.get('k').value, 'v');
 });
+
+test('cleanup() keeps an expired entry until STALE_MAX_MS, then removes it', () => {
+  mock.timers.enable({ apis: ['Date'], now: 0 });
+  const cache = new Cache();
+  cache.set('k', 1, 300);
+  mock.timers.tick(301 * 1000);
+  cache.cleanup();
+  assert.deepEqual(cache.get('k'), { value: 1, fresh: false });
+  mock.timers.tick(STALE_MAX_MS);
+  cache.cleanup();
+  assert.equal(cache.store.size, 0);
+});
+
+test('clear() during an in-flight fetch: the old result is not written back', async () => {
+  const cache = new Cache();
+  const getOrFetch = createCachedFetcher(cache);
+  const d = deferred();
+  let count = 0;
+  const fetcher = () => { count += 1; return count === 1 ? d.promise : Promise.resolve('new'); };
+  const first = getOrFetch('k', 300, fetcher);
+  cache.clear();
+  d.resolve('old');
+  await first;
+  assert.equal(cache.get('k'), null);
+  const next = await getOrFetch('k', 300, fetcher);
+  assert.equal(next.value, 'new');
+  assert.equal(count, 2);
+});

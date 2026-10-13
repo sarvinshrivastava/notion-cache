@@ -26,6 +26,9 @@ module.exports = ({ getOrFetch, notion, ttl, allowedDbIds = [] }) => {
     if (allowed.size && !allowed.has(dbId)) return res.status(404).json({ error: 'not_found' });
 
     try {
+      // With the allowlist on the site sends neither, so refuse them outright
+      // rather than let visitors steer arbitrary Notion queries.
+      if (allowed.size && (req.query.filter !== undefined || req.query.sorts !== undefined)) throw badRequest();
       const filter = jsonParam(req.query.filter, isPlainObject, {});
       const sorts = jsonParam(req.query.sorts, Array.isArray, []);
       // Keyed on the parsed values only: unknown query params (?x=1, ?x=2)

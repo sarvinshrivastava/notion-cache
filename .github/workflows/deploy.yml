@@ -1,5 +1,8 @@
 name: Deploy to VPS
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
@@ -12,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm test
@@ -27,10 +30,11 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Fetch VPS credentials from secrets-manager
+        env:
+          SM_TOKEN: ${{ secrets.SM_READ_TOKEN }}
         run: |
           set -euo pipefail
           SM_URL="https://secrets.vps.sarvinshrivastava.space/api/secrets/Root"
-          SM_TOKEN="${{ secrets.SM_READ_TOKEN }}"
 
           VPS_HOST=$(curl -sf -H "X-API-Key: $SM_TOKEN" "$SM_URL/VPS_HOST" | jq -r '.value')
           VPS_SSH_KEY=$(curl -sf -H "X-API-Key: $SM_TOKEN" "$SM_URL/VPS_SSH_KEY" | jq -r '.value')
@@ -66,9 +70,9 @@ jobs:
             if [ ! -d "$APP_DIR/.git" ]; then
               git clone "${{ github.server_url }}/${{ github.repository }}.git" "$APP_DIR"
             else
-              # Match the pushed commit exactly; a diverged or dirty checkout
-              # must never be deployed (`pull` could merge or silently fail).
+              # Deploy exactly the commit this run tested, not whatever main
+              # moved to since; a diverged or dirty checkout is overwritten.
               git -C "$APP_DIR" fetch origin main
-              git -C "$APP_DIR" reset --hard origin/main
+              git -C "$APP_DIR" reset --hard "${{ github.sha }}"
             fi
             vps-deploy "$REPO_NAME" "$APP_DIR"

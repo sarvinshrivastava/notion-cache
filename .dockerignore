@@ -1,4 +1,9 @@
-.env
+.env*
+.github
+docker-compose*.yml
+*.md
+Dockerfile
+.dockerignore
 node_modules
 .git
 test

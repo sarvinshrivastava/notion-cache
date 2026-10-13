@@ -57,3 +57,10 @@ test('a non-string key → 400', async () => {
   assert.equal(res.status, 400);
   assert.equal(cache.get('a').value, 1);
 });
+
+test('an empty key → 400 and the cache is untouched', async () => {
+  const { app, cache } = seeded();
+  const res = await request(app).post('/api/cache/invalidate?key=').set('x-invalidate-secret', SECRET);
+  assert.equal(res.status, 400);
+  assert.equal(cache.stats().size, 2);
+});

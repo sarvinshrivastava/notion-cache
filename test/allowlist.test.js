@@ -47,3 +47,13 @@ test('env parsing: either name, empty stripped name falls through, ids normalise
   assert.deepEqual(parseAllowedDbIds({ ALLOWED_DB_IDS: '', NOTION_CACHE_ALLOWED_DB_IDS: ID }), [ID]);
   assert.deepEqual(parseAllowedDbIds({}), []);
 });
+
+test('allowlist on → filter or sorts is 400 without calling Notion', async () => {
+  const { app, notion } = makeApp({ allowedDbIds: [ID] });
+  for (const q of ['filter=%7B%7D', 'sorts=%5B%5D']) {
+    const res = await request(app).get(`/api/database/${ID}?${q}`);
+    assert.equal(res.status, 400, q);
+    assert.deepEqual(res.body, { error: 'bad_request' });
+  }
+  assert.equal(notion.calls.queryDatabase[ID], undefined);
+});
