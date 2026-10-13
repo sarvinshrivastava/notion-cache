@@ -3,8 +3,11 @@ services:
     build: .
     container_name: ${SERVICE_NAME:-app}
     restart: unless-stopped
+    # Host nginx proxies to 127.0.0.1; binding there closes plain-HTTP access
+    # on the public IP.
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    init: true
     env_file:
       - .env
     environment:
