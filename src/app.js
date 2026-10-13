@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const { createCachedFetcher } = require('./services/cached');
 
 /**
  * Builds the app from injected dependencies so tests can create a fresh
@@ -27,14 +28,15 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
     ],
   }));
   app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+  const getOrFetch = createCachedFetcher(cache);
   if (allowlistOn) {
     // Nothing reads pages (0 requests in the access logs), so with the
     // allowlist on, every page route is closed.
     app.use('/api/pages', (req, res) => res.status(404).json({ error: 'not_found' }));
   } else {
-    app.use('/api/pages', require('./routes/pages')({ cache, notion, ttl }));
+    app.use('/api/pages', require('./routes/pages')({ getOrFetch, notion, ttl }));
   }
-  app.use('/api/database', require('./routes/database')({ cache, notion, ttl, allowedDbIds }));
+  app.use('/api/database', require('./routes/database')({ getOrFetch, notion, ttl, allowedDbIds }));
 
   app.post('/api/cache/invalidate', (req, res) => {
     // Fail closed: with no secret configured, `undefined !== undefined` would

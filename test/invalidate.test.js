@@ -23,7 +23,7 @@ test('secret unset → 401 even without a header, cache untouched', async () => 
   const { app, cache } = seeded();
   const res = await request(app).post('/api/cache/invalidate');
   assert.equal(res.status, 401);
-  assert.equal(cache.get('a'), 1);
+  assert.equal(cache.get('a').value, 1);
 });
 
 test('wrong or missing secret → 401', async () => {
@@ -33,7 +33,7 @@ test('wrong or missing secret → 401', async () => {
     (await request(app).post('/api/cache/invalidate').set('x-invalidate-secret', 'nope')).status,
     401,
   );
-  assert.equal(cache.get('a'), 1);
+  assert.equal(cache.get('a').value, 1);
 });
 
 test('right secret with a key removes only that key', async () => {
@@ -41,7 +41,7 @@ test('right secret with a key removes only that key', async () => {
   const res = await request(app).post('/api/cache/invalidate?key=a').set('x-invalidate-secret', SECRET);
   assert.equal(res.status, 200);
   assert.equal(cache.get('a'), null);
-  assert.equal(cache.get('b'), 2);
+  assert.equal(cache.get('b').value, 2);
 });
 
 test('right secret without a key clears every entry, fresh ones included', async () => {
@@ -55,5 +55,5 @@ test('a non-string key → 400', async () => {
   const { app, cache } = seeded();
   const res = await request(app).post('/api/cache/invalidate?key=a&key=b').set('x-invalidate-secret', SECRET);
   assert.equal(res.status, 400);
-  assert.equal(cache.get('a'), 1);
+  assert.equal(cache.get('a').value, 1);
 });
