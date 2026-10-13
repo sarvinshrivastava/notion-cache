@@ -56,7 +56,8 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
   app.get('/health', (req, res) => res.json({
     status: 'ok',
     uptime: process.uptime(),
-    cache: cache.stats(),
+    // Size only: the keys are database ids and visitor-supplied filters.
+    cache: { size: cache.stats().size },
     timestamp: new Date().toISOString(),
   }));
 

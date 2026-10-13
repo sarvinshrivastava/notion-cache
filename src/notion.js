@@ -1,5 +1,13 @@
 const { Client } = require('@notionhq/client');
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+
+// Without a token every query fails with 401 while /health still says ok, so
+// the site goes silently empty. Refuse to start instead.
+if (!process.env.NOTION_TOKEN && process.env.NODE_ENV !== 'test') {
+  throw new Error('NOTION_TOKEN missing');
+}
+// 5 s leaves the portfolio's resume function (8 s budget) time to get a stale
+// copy back when Notion hangs.
+const notion = new Client({ auth: process.env.NOTION_TOKEN, timeoutMs: 5000 });
 
 async function getPage(pageId) {
   return await notion.pages.retrieve({ page_id: pageId });

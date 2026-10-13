@@ -11,4 +11,15 @@ function parseAllowedDbIds(env = process.env) {
   return raw.split(',').map(normId).filter(Boolean);
 }
 
-module.exports = { normId, parseAllowedDbIds };
+/**
+ * Seconds a cached entry stays fresh. 0 is valid (no caching); unset, empty,
+ * negative or non-numeric falls back to 300. `parseInt(x) || 300` used to turn
+ * 0 into 300.
+ */
+function parseTtl(env = process.env) {
+  const raw = env.CACHE_TTL_SECONDS;
+  const n = raw?.trim() ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : 300;
+}
+
+module.exports = { normId, parseAllowedDbIds, parseTtl };
