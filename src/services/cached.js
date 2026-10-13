@@ -41,4 +41,7 @@ function createCachedFetcher(cache) {
   };
 }
 
-module.exports = { createCachedFetcher };
+/** Response fields that say where a getOrFetch result came from. */
+const cacheMeta = ({ cached, stale }) => ({ _cached: cached, ...(stale && { _stale: true }) });
+
+module.exports = { createCachedFetcher, cacheMeta };

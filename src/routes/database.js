@@ -1,6 +1,7 @@
 const express = require('express');
 const { normId } = require('../config');
 const { badRequest } = require('../errors');
+const { cacheMeta } = require('../services/cached');
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -30,9 +31,8 @@ module.exports = ({ getOrFetch, notion, ttl, allowedDbIds = [] }) => {
       // Keyed on the parsed values only: unknown query params (?x=1, ?x=2)
       // must not create new entries or new Notion queries.
       const cacheKey = `db:${dbId}:${JSON.stringify({ filter, sorts })}`;
-      const { value, cached, stale } = await getOrFetch(cacheKey, ttl, () =>
-        notion.queryDatabase(dbId, filter, sorts));
-      res.json({ results: value, _cached: cached, ...(stale && { _stale: true }) });
+      const hit = await getOrFetch(cacheKey, ttl, () => notion.queryDatabase(dbId, filter, sorts));
+      res.json({ results: hit.value, ...cacheMeta(hit) });
     } catch (err) { next(err); }
   });
 

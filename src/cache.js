@@ -46,7 +46,7 @@ class Cache {
     const cutoff = Date.now() - this.staleMaxMs;
     for (const [k, e] of this.store.entries()) if (e.expiresAt < cutoff) this.store.delete(k);
   }
-  stats() { return { size: this.store.size, keys: [...this.store.keys()] }; }
+  stats() { return { size: this.store.size }; }
 }
 
 module.exports = { Cache, STALE_MAX_MS, MAX_ENTRIES };
