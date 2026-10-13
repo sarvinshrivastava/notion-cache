@@ -8,6 +8,9 @@ const rateLimit = require('express-rate-limit');
  */
 function createApp({ cache, notion, ttl }) {
   const app = express();
+  // One hop: host nginx proxies to 127.0.0.1 and sets X-Forwarded-For. Without
+  // this every visitor shares nginx's address, and so one rate-limit bucket.
+  app.set('trust proxy', 1);
 
   app.use(express.json());
   app.use(cors({
