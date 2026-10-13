@@ -1,24 +1,59 @@
 name: Deploy to VPS
 
+permissions:
+  contents: read
+
 on:
+  pull_request:
   push:
     branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # Deploy job only: PR test runs must never cancel a queued deploy.
+    concurrency:
+      group: deploy-vps
+      cancel-in-progress: false
+    steps:
       - name: Fetch VPS credentials from secrets-manager
+        env:
+          SM_TOKEN: ${{ secrets.SM_READ_TOKEN }}
         run: |
+          set -euo pipefail
           SM_URL="https://secrets.vps.sarvinshrivastava.space/api/secrets/Root"
-          SM_TOKEN="${{ secrets.SM_READ_TOKEN }}"
 
           VPS_HOST=$(curl -sf -H "X-API-Key: $SM_TOKEN" "$SM_URL/VPS_HOST" | jq -r '.value')
-          echo "VPS_HOST=$VPS_HOST" >> "$GITHUB_ENV"
+          VPS_SSH_KEY=$(curl -sf -H "X-API-Key: $SM_TOKEN" "$SM_URL/VPS_SSH_KEY" | jq -r '.value')
+          for v in "$VPS_HOST" "$VPS_SSH_KEY"; do
+            if [ -z "$v" ] || [ "$v" = "null" ]; then
+              echo "secrets-manager returned an empty VPS credential" >&2
+              exit 1
+            fi
+          done
 
+          echo "::add-mask::$VPS_HOST"
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::add-mask::$line"
+          done <<< "$VPS_SSH_KEY"
+
+          echo "VPS_HOST=$VPS_HOST" >> "$GITHUB_ENV"
           {
             echo "VPS_SSH_KEY<<SSHEOF"
-            curl -sf -H "X-API-Key: $SM_TOKEN" "$SM_URL/VPS_SSH_KEY" | jq -r '.value'
+            echo "$VPS_SSH_KEY"
             echo "SSHEOF"
           } >> "$GITHUB_ENV"
 
@@ -29,11 +64,15 @@ jobs:
           username: root
           key: ${{ env.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
             REPO_NAME=$(basename "${{ github.repository }}")
             APP_DIR="/root/apps/$REPO_NAME"
             if [ ! -d "$APP_DIR/.git" ]; then
               git clone "${{ github.server_url }}/${{ github.repository }}.git" "$APP_DIR"
-            else
-              git -C "$APP_DIR" pull origin main
             fi
+            # Deploy exactly the commit this run tested, not whatever main moved
+            # to since. Fetching the sha itself survives a force-push of main;
+            # tracked changes are overwritten, untracked files are left alone.
+            git -C "$APP_DIR" fetch origin "${{ github.sha }}"
+            git -C "$APP_DIR" reset --hard "${{ github.sha }}"
             vps-deploy "$REPO_NAME" "$APP_DIR"
