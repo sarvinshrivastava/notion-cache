@@ -16,4 +16,5 @@ class Cache {
   }
   stats() { return { size: this.store.size, keys: [...this.store.keys()] }; }
 }
-module.exports = new Cache();
+
+module.exports = { Cache };
