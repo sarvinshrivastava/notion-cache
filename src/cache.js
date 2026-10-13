@@ -10,6 +10,7 @@ class Cache {
     return entry.value;
   }
   invalidate(key) { this.store.delete(key); }
+  clear() { this.store.clear(); }
   cleanup() {
     const now = Date.now();
     for (const [k, e] of this.store.entries()) if (now > e.expiresAt) this.store.delete(k);

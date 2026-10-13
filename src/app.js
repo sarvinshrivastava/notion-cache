@@ -26,12 +26,17 @@ function createApp({ cache, notion, ttl }) {
   app.use('/api/database', require('./routes/database')({ cache, notion, ttl }));
 
   app.post('/api/cache/invalidate', (req, res) => {
-    if (req.headers['x-invalidate-secret'] !== process.env.INVALIDATE_SECRET)
+    // Fail closed: with no secret configured, `undefined !== undefined` would
+    // otherwise let a header-less request through.
+    const secret = process.env.INVALIDATE_SECRET;
+    if (!secret || req.get('x-invalidate-secret') !== secret)
       return res.status(401).json({ error: 'Unauthorized' });
     const { key } = req.query;
+    if (key !== undefined && typeof key !== 'string')
+      return res.status(400).json({ error: 'bad_request' });
     if (key) { cache.invalidate(key); return res.json({ invalidated: key }); }
-    cache.cleanup();
-    res.json({ message: 'Cache cleaned' });
+    cache.clear();
+    res.json({ cleared: true });
   });
 
   app.get('/health', (req, res) => res.json({
