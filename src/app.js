@@ -6,7 +6,12 @@ const rateLimit = require('express-rate-limit');
  * Builds the app from injected dependencies so tests can create a fresh
  * instance (own cache, fake Notion) per case. index.js wires the real ones.
  */
-function createApp({ cache, notion, ttl }) {
+function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
+  const allowlistOn = allowedDbIds.length > 0;
+  if (!allowlistOn) {
+    // Fail open on purpose: a missing secret must not take the site down.
+    console.warn('ALLOWED_DB_IDS is not set — every database id is served');
+  }
   const app = express();
   // One hop: host nginx proxies to 127.0.0.1 and sets X-Forwarded-For. Without
   // this every visitor shares nginx's address, and so one rate-limit bucket.
@@ -22,8 +27,14 @@ function createApp({ cache, notion, ttl }) {
     ],
   }));
   app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
-  app.use('/api/pages', require('./routes/pages')({ cache, notion, ttl }));
-  app.use('/api/database', require('./routes/database')({ cache, notion, ttl }));
+  if (allowlistOn) {
+    // Nothing reads pages (0 requests in the access logs), so with the
+    // allowlist on, every page route is closed.
+    app.use('/api/pages', (req, res) => res.status(404).json({ error: 'not_found' }));
+  } else {
+    app.use('/api/pages', require('./routes/pages')({ cache, notion, ttl }));
+  }
+  app.use('/api/database', require('./routes/database')({ cache, notion, ttl, allowedDbIds }));
 
   app.post('/api/cache/invalidate', (req, res) => {
     // Fail closed: with no secret configured, `undefined !== undefined` would

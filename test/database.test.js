@@ -18,9 +18,9 @@ test('first read misses, second read is served from cache', async () => {
 test('each database id gets its own rows, on miss and on hit', async () => {
   const { app } = makeApp();
   for (let i = 0; i < 2; i++) {
-    const a = await request(app).get('/api/database/dbA');
-    const b = await request(app).get('/api/database/dbB');
-    assert.deepEqual(a.body.results, [{ id: 'row-of-dbA' }]);
-    assert.deepEqual(b.body.results, [{ id: 'row-of-dbB' }]);
+    const a = await request(app).get('/api/database/dba');
+    const b = await request(app).get('/api/database/dbb');
+    assert.deepEqual(a.body.results, [{ id: 'row-of-dba' }]);
+    assert.deepEqual(b.body.results, [{ id: 'row-of-dbb' }]);
   }
 });
