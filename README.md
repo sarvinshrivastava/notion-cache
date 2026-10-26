@@ -75,7 +75,7 @@ The service renders the portfolio's resume PDF from four Notion databases (About
 
 ### Environment variables
 
-Each name is also accepted with the `NOTION_CACHE_` prefix (the deploy strips it).
+`RESUME_UPDATE_TOKEN` and the four `RESUME_DB_*` ids are also accepted with the `NOTION_CACHE_` prefix (the deploy strips it). `RESUME_DIR` is not.
 
 | Variable | Meaning |
 |---|---|

@@ -72,3 +72,10 @@ test('parseResumeConfig accepts both names, falls through an empty value, and no
   });
   assert.equal(parseResumeConfig({}).token, '');
 });
+
+test('parseResumeConfig trims the token; a whitespace-only token reads as empty', () => {
+  const { parseResumeConfig } = require('../src/config');
+  assert.equal(parseResumeConfig({ RESUME_UPDATE_TOKEN: 'tok\n' }).token, 'tok');
+  assert.equal(parseResumeConfig({ RESUME_UPDATE_TOKEN: ' \n' }).token, '');
+  assert.equal(parseResumeConfig({ NOTION_CACHE_RESUME_UPDATE_TOKEN: ' x ' }).token, 'x');
+});

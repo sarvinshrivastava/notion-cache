@@ -78,6 +78,8 @@ test('first update renders; GET serves it with the exact headers and a sha256 ET
   assert.equal(res.headers['content-type'], 'application/pdf');
   assert.equal(res.headers['content-disposition'], 'inline; filename="Sarvin-Shrivastava-Resume.pdf"');
   assert.equal(res.headers['x-robots-tag'], 'noindex');
+  assert.equal(res.headers['x-content-type-options'], 'nosniff');
+  assert.equal(res.headers['content-security-policy'], undefined);
   assert.equal(res.headers['cache-control'], 'public, max-age=0, must-revalidate');
   assert.equal(res.headers['netlify-cdn-cache-control'], 'public, durable, max-age=300, stale-while-revalidate=86400');
   assert.equal(res.headers.etag, `"${sha(res.body)}"`);
@@ -185,9 +187,14 @@ test('limits: /resume.pdf has none; 11 token-less POSTs hit 429; /api is not lim
   assert.deepEqual(statuses, [...Array(10).fill(401), 429]);
   assert.equal(fresh.renders.n, 0);
 
+  // Same IP: exhaust the update limiter first, then /api must still answer.
+  const ip = '203.0.113.5';
   const api = setup();
+  let last;
+  for (let i = 0; i < 11; i += 1) last = await request(api.app).post('/update-resume').set('X-Forwarded-For', ip);
+  assert.equal(last.status, 429);
   for (let i = 0; i < 11; i += 1) {
-    assert.equal((await request(api.app).get('/api/database/db1').set('X-Forwarded-For', '203.0.113.5')).status, 200);
+    assert.equal((await request(api.app).get('/api/database/db1').set('X-Forwarded-For', ip)).status, 200);
   }
 });
 
@@ -277,4 +284,46 @@ test('resilience: a missing dir and a store whose readSync throws still construc
   });
   assert.equal(broken.service.snapshot(), null);
   assert.equal((await request(broken.app).get('/api/database/db1')).status, 200);
+});
+
+test('an empty dataset or an About row with no Bio answers 502 and the old PDF stays', async () => {
+  const ctx = setup();
+  await post(ctx.app);
+  const etag = (await request(ctx.app).get('/resume.pdf')).headers.etag;
+  const orig = ctx.notion.queryDatabase;
+  const override = (id, rows) => { ctx.notion.queryDatabase = i => (i === id ? Promise.resolve(rows) : orig(i)); };
+
+  for (const id of Object.values(dbIds)) {
+    override(id, []);
+    const r = await post(ctx.app);
+    assert.equal(r.status, 502, id);
+    assert.deepEqual(r.body, { error: 'upstream_unavailable' });
+  }
+  override('dba', [{ properties: { Bio: { rich_text: rt('   ') } } }]);
+  assert.equal((await post(ctx.app)).status, 502);
+  override('dba', [{ id: 'no-properties' }]);
+  assert.equal((await post(ctx.app)).status, 502);
+
+  assert.equal((await request(ctx.app).get('/resume.pdf')).headers.etag, etag);
+  assert.equal(ctx.renders.n, 1);
+});
+
+test('meta written for other bytes loads with hash null, so unchanged content re-renders', async () => {
+  const first = setup();
+  await first.service.update();
+  const meta = JSON.parse(fs.readFileSync(path.join(first.dir, 'resume.json'), 'utf8'));
+  assert.equal(meta.etag, first.service.snapshot().etag);
+  fs.writeFileSync(path.join(first.dir, 'resume.json'), JSON.stringify({ ...meta, etag: 'f'.repeat(64) }));
+
+  const second = setup({ dir: first.dir });
+  assert.equal(second.service.snapshot().hash, null);
+  assert.equal((await post(second.app)).body.updated, true);
+  assert.equal(second.renders.n, 1);
+});
+
+test('the update route logs a sanitised run id', async () => {
+  const { app } = setup();
+  await post(app, { ...AUTH, 'X-PLR-Run-Id': `run-1.a<b>/;script>${'x'.repeat(100)}` });
+  const line = console.log.mock.calls.map(c => c.arguments.join(' ')).find(l => l.includes('update-resume run'));
+  assert.match(line, / run-1\.abscriptx{45}$/);
 });

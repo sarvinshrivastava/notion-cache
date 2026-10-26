@@ -31,6 +31,7 @@ function createApp({
       'http://localhost:3000',
     ],
   }));
+  // 400, not 100: the site loads its 4 datasets as one group (4 calls per page load).
   app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 400 }));
   const getOrFetch = createCachedFetcher(cache);
   if (allowlistOn) {

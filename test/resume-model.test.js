@@ -175,3 +175,13 @@ test('TEMPLATE_VERSION is 64 hex; computeVersion reacts to the lockfile and to e
   assert.notEqual(base, computeVersion({ files: ['a', 'c'], lockfile: 'L' }));
   assert.equal(base, computeVersion({ files: ['a', 'b'], lockfile: 'L' }));
 });
+
+test('every template file and the lockfile exist and are non-empty', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { TEMPLATE_FILES, LOCKFILE } = require('../src/resume/version');
+  assert.ok(TEMPLATE_FILES.length >= 4);
+  for (const f of [...TEMPLATE_FILES.map(n => path.join(__dirname, '..', 'src', 'resume', n)), LOCKFILE]) {
+    assert.ok(fs.statSync(f).size > 0, f);
+  }
+});

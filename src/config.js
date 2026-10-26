@@ -30,7 +30,8 @@ function parseTtl(env = process.env) {
  * is /app/data in the image.
  */
 function parseResumeConfig(env = process.env) {
-  const pick = name => env[name] || env[`NOTION_CACHE_${name}`] || '';
+  // Trimmed: the presented bearer token is trimmed, so a stray newline in the secret would 401 every call.
+  const pick = name => (env[name] || env[`NOTION_CACHE_${name}`] || '').trim();
   return {
     token: pick('RESUME_UPDATE_TOKEN'),
     dbIds: {

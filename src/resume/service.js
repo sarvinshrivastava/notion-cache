@@ -6,6 +6,7 @@ const { renderPdf } = require('./render');
 
 const sha256hex = data => crypto.createHash('sha256').update(data).digest('hex');
 const notConfigured = () => Object.assign(new Error('not_configured'), { code: 'not_configured' });
+const emptyDataset = name => Object.assign(new Error(`empty_dataset: ${name}`), { code: 'empty_dataset' });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms).unref());
 
 /**
@@ -26,10 +27,13 @@ function createResumeService({
   try {
     const loaded = store.readSync();
     if (loaded) {
+      const etag = sha256hex(loaded.pdf);
+      // Meta written for other bytes (a crash between the two renames) cannot vouch for this PDF.
+      const metaMatches = loaded.meta?.etag === etag;
       mem = {
         pdf: loaded.pdf,
-        etag: sha256hex(loaded.pdf),
-        hash: loaded.meta?.hash ?? null,
+        etag,
+        hash: metaMatches ? loaded.meta.hash ?? null : null,
         renderedAt: loaded.meta?.renderedAt ?? null,
       };
     }
@@ -46,6 +50,12 @@ function createResumeService({
     const [about, projects, timeline, experience] = await Promise.all(
       [dbIds.about, dbIds.projects, dbIds.timeline, dbIds.experience].map(id => notion.queryDatabase(id)),
     );
+    // Never publish a near-empty resume (the site build refuses the same data).
+    const sets = {
+      about, projects, timeline, experience,
+    };
+    for (const [name, rows] of Object.entries(sets)) if (!rows.length) throw emptyDataset(name);
+    if (!parseResumeInput({ about }).about.bio.trim()) throw emptyDataset('about.bio');
     const resume = buildResume(parseResumeInput({
       about, projects, timeline, experience,
     }));
@@ -53,9 +63,10 @@ function createResumeService({
     if (hash === mem?.hash) return { updated: false, hash, renderedAt: mem.renderedAt };
     const pdf = await render(resume);
     const renderedAt = new Date().toISOString();
-    store.writeSync(pdf, { hash, renderedAt });
+    const etag = sha256hex(pdf);
+    store.writeSync(pdf, { hash, renderedAt, etag });
     mem = {
-      pdf, etag: sha256hex(pdf), hash, renderedAt,
+      pdf, etag, hash, renderedAt,
     };
     return { updated: true, hash, renderedAt };
   }

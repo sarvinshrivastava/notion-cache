@@ -7,6 +7,8 @@ const PDF_HEADERS = {
   'Content-Type': 'application/pdf',
   'Content-Disposition': 'inline; filename="Sarvin-Shrivastava-Resume.pdf"',
   'X-Robots-Tag': 'noindex',
+  // No Content-Security-Policy: AC10 requires none, and a sandbox CSP stops Chrome's PDF viewer.
+  'X-Content-Type-Options': 'nosniff',
   'Cache-Control': 'public, max-age=0, must-revalidate',
   'Netlify-CDN-Cache-Control': 'public, durable, max-age=300, stale-while-revalidate=86400',
 };
@@ -21,7 +23,7 @@ module.exports = ({ service, token }) => {
     if (!token) return res.status(503).json({ error: 'not_configured' });
     if (!secretMatches(token, bearerToken(req))) return res.status(401).json({ error: 'unauthorized' });
     const runId = req.get('x-plr-run-id');
-    if (runId) console.log('[notion-cache] update-resume run', runId);
+    if (runId) console.log('[notion-cache] update-resume run', String(runId).slice(0, 64).replace(/[^\w.-]/g, ''));
     try {
       res.json(await service.update());
     } catch (err) {

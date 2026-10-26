@@ -5,17 +5,26 @@ const path = require('node:path');
 /** Write a file through a unique temp name, fsync it, then rename it into place. */
 function atomicWrite(dir, name, data) {
   const tmp = path.join(dir, `${name}.${process.pid}.${crypto.randomUUID()}.tmp`);
-  const fd = fs.openSync(tmp, 'w');
   try {
-    fs.writeFileSync(fd, data);
-    fs.fsyncSync(fd);
-  } finally {
-    fs.closeSync(fd);
+    const fd = fs.openSync(tmp, 'w');
+    try {
+      fs.writeFileSync(fd, data);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmp, path.join(dir, name));
+  } catch (err) {
+    // A full volume must not pile up partial temps.
+    fs.rmSync(tmp, { force: true });
+    throw err;
   }
-  fs.renameSync(tmp, path.join(dir, name));
 }
 
-/** The rendered PDF and its `{hash, renderedAt}` on a directory (a volume in Docker). */
+// Only the temps atomicWrite creates; anything else in the directory is not ours.
+const OWN_TEMP = /^resume\.(pdf|json)\.\d+\.[0-9a-f-]{36}\.tmp$/;
+
+/** The rendered PDF and its `{hash, renderedAt, etag}` on a directory (a volume in Docker). */
 function createStore(dir) {
   return {
     readSync() {
@@ -26,6 +35,7 @@ function createStore(dir) {
         if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return null;
         throw err;
       }
+      if (!pdf.subarray(0, 5).equals(Buffer.from('%PDF-'))) return null;
       let meta;
       try {
         meta = JSON.parse(fs.readFileSync(path.join(dir, 'resume.json'), 'utf8'));
@@ -35,8 +45,9 @@ function createStore(dir) {
       return { pdf, meta };
     },
 
-    // PDF first, meta second: a crash between them leaves a hash mismatch, so
-    // the next run re-renders.
+    // PDF first, meta second. The meta carries the PDF's sha256 as `etag`, so a
+    // crash between the two leaves meta that does not match the bytes on disk,
+    // and the service re-renders instead of trusting its hash.
     writeSync(pdf, meta) {
       fs.mkdirSync(dir, { recursive: true });
       atomicWrite(dir, 'resume.pdf', pdf);
@@ -52,7 +63,7 @@ function createStore(dir) {
         if (err.code === 'ENOENT') return;
         throw err;
       }
-      for (const n of names) if (n.endsWith('.tmp')) fs.rmSync(path.join(dir, n), { force: true });
+      for (const n of names) if (OWN_TEMP.test(n)) fs.rmSync(path.join(dir, n), { force: true });
     },
   };
 }
