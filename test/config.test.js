@@ -49,3 +49,39 @@ test('/health reports whether the allowlist is on', async () => {
   assert.equal(off.body.allowlist, false);
   assert.equal(on.body.allowlist, true);
 });
+
+test('parseResumeConfig accepts both names, falls through an empty value, and normalises ids', () => {
+  const { parseResumeConfig } = require('../src/config');
+  const root = path.resolve(__dirname, '..');
+  const plain = parseResumeConfig({
+    RESUME_UPDATE_TOKEN: 'tok', RESUME_DB_ABOUT: 'AB-CD', RESUME_DB_PROJECTS: 'p', RESUME_DB_TIMELINE: 't', RESUME_DB_EXPERIENCE: 'e', RESUME_DIR: '/x',
+  });
+  assert.deepEqual(plain, {
+    token: 'tok', dbIds: { about: 'abcd', projects: 'p', timeline: 't', experience: 'e' }, dir: '/x',
+  });
+  const prefixed = parseResumeConfig({
+    NOTION_CACHE_RESUME_UPDATE_TOKEN: 'tok2', RESUME_DB_ABOUT: '', NOTION_CACHE_RESUME_DB_ABOUT: 'a-b', NOTION_CACHE_RESUME_DB_PROJECTS: 'P',
+  });
+  assert.equal(prefixed.token, 'tok2');
+  assert.deepEqual(prefixed.dbIds, {
+    about: 'ab', projects: 'p', timeline: '', experience: '',
+  });
+  assert.equal(prefixed.dir, path.resolve(root, 'data'));
+  assert.deepEqual(parseResumeConfig({}).dbIds, {
+    about: '', projects: '', timeline: '', experience: '',
+  });
+  assert.equal(parseResumeConfig({}).token, '');
+});
+
+test('parseResumeConfig trims the token; a whitespace-only token reads as empty', () => {
+  const { parseResumeConfig } = require('../src/config');
+  assert.equal(parseResumeConfig({ RESUME_UPDATE_TOKEN: 'tok\n' }).token, 'tok');
+  assert.equal(parseResumeConfig({ RESUME_UPDATE_TOKEN: ' \n' }).token, '');
+  assert.equal(parseResumeConfig({ NOTION_CACHE_RESUME_UPDATE_TOKEN: ' x ' }).token, 'x');
+});
+
+test('parseResumeConfig trims RESUME_DIR', () => {
+  const { parseResumeConfig } = require('../src/config');
+  assert.equal(parseResumeConfig({ RESUME_DIR: '/x/y\n' }).dir, '/x/y');
+  assert.equal(parseResumeConfig({ RESUME_DIR: ' \n' }).dir, path.resolve(__dirname, '..', 'data'));
+});

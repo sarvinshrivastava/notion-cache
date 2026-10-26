@@ -1,11 +1,6 @@
-const crypto = require('node:crypto');
 const express = require('express');
 const { badRequest } = require('../errors');
-
-const sha256 = s => crypto.createHash('sha256').update(s).digest();
-
-/** Compare fixed-size digests so neither timing nor length leaks the secret. */
-const secretMatches = (secret, given = '') => crypto.timingSafeEqual(sha256(secret), sha256(given));
+const { secretMatches } = require('../auth');
 
 module.exports = ({ cache }) => {
   const router = express.Router();
