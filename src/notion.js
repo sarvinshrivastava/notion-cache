@@ -5,8 +5,7 @@ const { Client } = require('@notionhq/client');
 if (!process.env.NOTION_TOKEN && process.env.NODE_ENV !== 'test') {
   throw new Error('NOTION_TOKEN missing');
 }
-// 5 s leaves the portfolio's resume function (8 s budget) time to get a stale
-// copy back when Notion hangs.
+// 5 s bounds each query, so a hung Notion cannot hold /update-resume open.
 const notion = new Client({ auth: process.env.NOTION_TOKEN, timeoutMs: 5000 });
 
 async function getPage(pageId) {

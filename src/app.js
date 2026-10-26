@@ -8,7 +8,9 @@ const { errorHandler } = require('./errors');
  * Builds the app from injected dependencies so tests can create a fresh
  * instance (own cache, fake Notion) per case. index.js wires the real ones.
  */
-function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
+function createApp({
+  cache, notion, ttl, allowedDbIds = [], resume,
+}) {
   const allowlistOn = allowedDbIds.length > 0;
   if (!allowlistOn) {
     // Fail open on purpose: a missing secret must not take the site down.
@@ -29,7 +31,7 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
       'http://localhost:3000',
     ],
   }));
-  app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
+  app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 400 }));
   const getOrFetch = createCachedFetcher(cache);
   if (allowlistOn) {
     // Nothing reads pages (0 requests in the access logs), so with the
@@ -41,6 +43,7 @@ function createApp({ cache, notion, ttl, allowedDbIds = [] }) {
   app.use('/api/database', require('./routes/database')({ getOrFetch, notion, ttl, allowedDbIds }));
 
   app.use('/api/cache', require('./routes/cache')({ cache }));
+  if (resume) app.use(require('./routes/resume')(resume));
 
   app.get('/health', (req, res) => res.json({
     status: 'ok',
