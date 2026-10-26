@@ -7,7 +7,7 @@ const sha256 = s => crypto.createHash('sha256').update(s).digest('hex');
 /** Pure: the version of a template is the hash of its files plus the lockfile. */
 const computeVersion = ({ files, lockfile }) => sha256(`${files.join('\n')}\n${lockfile}`);
 
-// A file that does not exist yet reads as empty, so the module loads at every step.
+// A missing file reads as empty rather than throwing, so the module always loads.
 const read = file => {
   try {
     return fs.readFileSync(file, 'utf8');

@@ -26,7 +26,7 @@ function createStore(dir) {
         if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return null;
         throw err;
       }
-      let meta = null;
+      let meta;
       try {
         meta = JSON.parse(fs.readFileSync(path.join(dir, 'resume.json'), 'utf8'));
       } catch {

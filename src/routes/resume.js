@@ -2,6 +2,16 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { secretMatches, bearerToken } = require('../auth');
 
+// Built once: /resume.pdf is the hot path. The ETag is added per snapshot.
+const PDF_HEADERS = {
+  'Content-Type': 'application/pdf',
+  'Content-Disposition': 'inline; filename="Sarvin-Shrivastava-Resume.pdf"',
+  'X-Robots-Tag': 'noindex',
+  'Cache-Control': 'public, max-age=0, must-revalidate',
+  'Netlify-CDN-Cache-Control': 'public, durable, max-age=300, stale-while-revalidate=86400',
+};
+const NO_STORE = { 'Cache-Control': 'no-store', 'Netlify-CDN-Cache-Control': 'no-store' };
+
 module.exports = ({ service, token }) => {
   const router = express.Router();
   // On this route only: /resume.pdf must stay open to Netlify's shared egress.
@@ -27,17 +37,11 @@ module.exports = ({ service, token }) => {
   router.get('/resume.pdf', (req, res) => {
     const snap = service.snapshot();
     if (!snap) {
-      res.set({ 'Cache-Control': 'no-store', 'Netlify-CDN-Cache-Control': 'no-store' });
+      res.set(NO_STORE);
       return res.status(503).type('text/plain').send('resume not generated yet');
     }
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'inline; filename="Sarvin-Shrivastava-Resume.pdf"',
-      'X-Robots-Tag': 'noindex',
-      'Cache-Control': 'public, max-age=0, must-revalidate',
-      'Netlify-CDN-Cache-Control': 'public, durable, max-age=300, stale-while-revalidate=86400',
-      ETag: `"${snap.etag}"`,
-    });
+    res.set(PDF_HEADERS);
+    res.set('ETag', `"${snap.etag}"`);
     // send() answers 304 itself when If-None-Match matches (req.fresh).
     res.send(snap.pdf);
   });

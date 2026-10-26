@@ -8,14 +8,14 @@ const { createResumeService } = require('./resume/service');
 
 const PORT = process.env.PORT || 3000;
 
-const rc = parseResumeConfig();
-if (!rc.token || Object.values(rc.dbIds).some(id => !id)) {
+const { token, dbIds, dir } = parseResumeConfig();
+if (!token || Object.values(dbIds).some(id => !id)) {
   console.warn('RESUME_UPDATE_TOKEN or a RESUME_DB_* id is not set: /update-resume answers 503');
 }
 
 const cache = new Cache();
-const service = createResumeService({ notion, store: createStore(rc.dir), dbIds: rc.dbIds });
-const app = createApp({ cache, notion, ...optionsFromEnv(), resume: { service, token: rc.token } });
+const service = createResumeService({ notion, store: createStore(dir), dbIds });
+const app = createApp({ cache, notion, ...optionsFromEnv(), resume: { service, token } });
 
 setInterval(() => cache.cleanup(), 10 * 60 * 1000);
 app.listen(PORT, () => {

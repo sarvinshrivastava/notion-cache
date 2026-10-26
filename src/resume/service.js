@@ -35,7 +35,6 @@ function createResumeService({
     }
   } catch (err) {
     console.error('[notion-cache] resume store read failed', err);
-    mem = null;
   }
   const hadPdf = mem !== null;
 

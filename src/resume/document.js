@@ -65,26 +65,22 @@ function createDocument(pdf, resume) {
     ]
     : []);
 
-  const bullets = (items, key) => items.map((b, i) => h(
+  const bullet = (key, ...content) => h(
     View,
-    { key: `${key}-${i}`, style: styles.bullet, wrap: false },
+    { key, style: styles.bullet, wrap: false },
     h(Text, { style: styles.dot }, '•'),
-    h(Text, { style: styles.bulletText }, b),
-  ));
-
-  const repoBullet = (repo, key) => h(
-    View,
-    { key: `${key}-repo`, style: styles.bullet, wrap: false },
-    h(Text, { style: styles.dot }, '•'),
-    h(
-      Text,
-      { style: styles.bulletText },
-      'Repository Link: ',
-      h(Link, { src: repo, style: styles.link }, repo.replace(/^https?:\/\//i, '')),
-    ),
+    h(Text, { style: styles.bulletText }, ...content),
   );
 
-  const entry = (key, left, dates, extra = [], rest = []) => h(
+  const bullets = (items, key) => items.map((b, i) => bullet(`${key}-${i}`, b));
+
+  const repoBullet = (repo, key) => bullet(
+    `${key}-repo`,
+    'Repository Link: ',
+    h(Link, { src: repo, style: styles.link }, repo.replace(/^https?:\/\//i, '')),
+  );
+
+  const entry = (key, left, dates, body) => h(
     View,
     { key },
     h(
@@ -93,16 +89,17 @@ function createDocument(pdf, resume) {
       h(Text, { style: styles.left }, ...left),
       dates ? h(Text, { style: styles.dates }, dates) : null,
     ),
-    ...extra,
-    ...rest,
+    ...body,
   );
 
   const experience = resume.experience.map((e, i) => entry(
     `exp-${i}`,
     [h(Text, { key: 'c', style: styles.bold }, e.company)],
     e.dates,
-    e.role ? [h(Text, { key: 'role', style: styles.italic }, e.role)] : [],
-    bullets(e.bullets, `exp-${i}`),
+    [
+      ...(e.role ? [h(Text, { key: 'role', style: styles.italic }, e.role)] : []),
+      ...bullets(e.bullets, `exp-${i}`),
+    ],
   ));
 
   const projects = resume.projects.map((p, i) => entry(
@@ -112,7 +109,6 @@ function createDocument(pdf, resume) {
       ...(p.stack ? [' | ', h(Text, { key: 's', style: styles.italic }, p.stack)] : []),
     ],
     p.dates,
-    [],
     [...bullets(p.bullets, `proj-${i}`), ...(p.repo ? [repoBullet(p.repo, `proj-${i}`)] : [])],
   ));
 
@@ -120,7 +116,6 @@ function createDocument(pdf, resume) {
     `ach-${i}`,
     [h(Text, { key: 't', style: styles.bold }, a.title)],
     '',
-    [],
     bullets(a.bullets, `ach-${i}`),
   ));
 
@@ -128,7 +123,6 @@ function createDocument(pdf, resume) {
     `lead-${i}`,
     [h(Text, { key: 't', style: styles.bold }, l.title)],
     l.dates,
-    [],
     bullets(l.bullets, `lead-${i}`),
   ));
 
