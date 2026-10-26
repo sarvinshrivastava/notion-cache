@@ -13,3 +13,8 @@ services:
     environment:
       - PORT=3000
       - SERVICE_NAME=${SERVICE_NAME:-app}
+    volumes:
+      - "resume-data:/app/data"
+
+volumes:
+  resume-data: {}
