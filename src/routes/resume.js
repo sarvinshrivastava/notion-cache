@@ -12,7 +12,11 @@ const PDF_HEADERS = {
   'Cache-Control': 'public, max-age=0, must-revalidate',
   'Netlify-CDN-Cache-Control': 'public, durable, max-age=300, stale-while-revalidate=86400',
 };
-const NO_STORE = { 'Cache-Control': 'no-store', 'Netlify-CDN-Cache-Control': 'no-store' };
+const NO_STORE = {
+  'Cache-Control': 'no-store',
+  'Netlify-CDN-Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+};
 
 module.exports = ({ service, token }) => {
   const router = express.Router();

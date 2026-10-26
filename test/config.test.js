@@ -79,3 +79,9 @@ test('parseResumeConfig trims the token; a whitespace-only token reads as empty'
   assert.equal(parseResumeConfig({ RESUME_UPDATE_TOKEN: ' \n' }).token, '');
   assert.equal(parseResumeConfig({ NOTION_CACHE_RESUME_UPDATE_TOKEN: ' x ' }).token, 'x');
 });
+
+test('parseResumeConfig trims RESUME_DIR', () => {
+  const { parseResumeConfig } = require('../src/config');
+  assert.equal(parseResumeConfig({ RESUME_DIR: '/x/y\n' }).dir, '/x/y');
+  assert.equal(parseResumeConfig({ RESUME_DIR: ' \n' }).dir, path.resolve(__dirname, '..', 'data'));
+});

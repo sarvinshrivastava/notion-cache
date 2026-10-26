@@ -16,7 +16,9 @@ function atomicWrite(dir, name, data) {
     fs.renameSync(tmp, path.join(dir, name));
   } catch (err) {
     // A full volume must not pile up partial temps.
-    fs.rmSync(tmp, { force: true });
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch { /* keep the original error */ }
     throw err;
   }
 }

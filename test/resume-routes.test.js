@@ -167,6 +167,7 @@ test('a GET before any render answers 503 with no max-age in either cache header
   assert.equal(res.status, 503);
   assert.match(res.headers['content-type'], /^text\/plain/);
   assert.equal(res.text, 'resume not generated yet');
+  assert.equal(res.headers['x-content-type-options'], 'nosniff');
   assert.equal(res.headers['cache-control'], 'no-store');
   assert.equal(res.headers['netlify-cdn-cache-control'], 'no-store');
   assert.doesNotMatch(`${res.headers['cache-control']}${res.headers['netlify-cdn-cache-control']}`, /max-age/);

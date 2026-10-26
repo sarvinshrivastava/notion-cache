@@ -40,7 +40,7 @@ function parseResumeConfig(env = process.env) {
       timeline: normId(pick('RESUME_DB_TIMELINE')),
       experience: normId(pick('RESUME_DB_EXPERIENCE')),
     },
-    dir: env.RESUME_DIR || path.resolve(__dirname, '..', 'data'),
+    dir: (env.RESUME_DIR || '').trim() || path.resolve(__dirname, '..', 'data'),
   };
 }
 
